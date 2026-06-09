@@ -1,0 +1,39 @@
+name: Groq Prompt Runner
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  run-groq:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'groq')
+    steps:
+      - name: Call Groq API
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PROMPT: ${{ github.event.issue.body }}
+        run: |
+          RESPONSE=$(curl -s https://api.groq.com/openai/v1/chat/completions \
+            -H "Authorization: Bearer $GROQ_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg prompt "$PROMPT" '{
+              model: "llama-3.3-70b-versatile",
+              messages: [{role: "user", content: $prompt}]
+            }')")
+
+          echo "$RESPONSE" > response.json
+
+      - name: Comment response on issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const response = JSON.parse(fs.readFileSync('response.json', 'utf8'));
+            const reply = response.choices?.[0]?.message?.content || 'No response returned.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: reply
+            });

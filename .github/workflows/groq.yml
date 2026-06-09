@@ -2,7 +2,11 @@ name: Groq Prompt Runner
 
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
+
+permissions:
+  issues: write
+  contents: read
 
 jobs:
   run-groq:
